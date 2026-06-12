@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pertamina &middot; Monitoring Jam Lembur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+:root{
+  --pblue:#0a4d9c;--pblue2:#0866c6;--pnavy:#06335f;--pred:#e4002b;--pgreen:#009a44;
+  --amber:#f5a623;--green:#009a44;--red:#e4002b;
+  --bg:#eef3f9;--card:#ffffff;--ink:#0e2233;--mut:#5b7185;--dim:#8aa0b4;--line:#e3eaf2;
+  --greenbg:#e6f6ee;--amberbg:#fef3e0;--redbg:#fde7eb;
+  --sh:0 1px 2px rgba(13,42,71,.05),0 6px 20px rgba(13,42,71,.06);
+  --sh2:0 8px 30px rgba(10,77,156,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:1320px;margin:0 auto;padding:0 24px 80px}
+
+/* brand bar */
+.brandbar{display:none}
+
+/* header */
+header{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(13,42,71,.02)}
+.head-in{max-width:1320px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px}
+.mark{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#0866c6,#06335f);display:grid;place-items:center;box-shadow:0 6px 18px rgba(10,77,156,.32);position:relative;overflow:hidden}
+.mark svg{width:30px;height:30px;position:relative;z-index:1}
+.brand .nm{font-family:'Sora';font-weight:800;font-size:19px;letter-spacing:-.5px;color:var(--pnavy);line-height:1}
+.brand .nm em{font-style:normal;color:var(--pred)}
+.brand .tag{font-size:11px;color:var(--mut);font-weight:600;letter-spacing:.2px;margin-top:3px}
+.nav{display:flex;gap:5px;margin-left:14px;background:#eaf1f9;padding:4px;border-radius:12px}
+.nav button{background:transparent;border:none;color:var(--mut);font-family:'Plus Jakarta Sans';font-weight:700;font-size:13px;padding:9px 18px;border-radius:9px;cursor:pointer;transition:.18s}
+.nav button:hover{color:var(--pblue)}
+.nav button.on{background:#fff;color:var(--pblue);box-shadow:var(--sh)}
+.tools{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.saveind{font-size:11px;color:var(--dim);font-weight:600;font-family:'IBM Plex Mono'}
+.saveind b{color:var(--green)}
+.btn{background:#fff;border:1px solid var(--line);color:var(--ink);font-family:'Plus Jakarta Sans';font-size:12px;font-weight:700;padding:9px 13px;border-radius:9px;cursor:pointer;transition:.18s;display:inline-flex;align-items:center;gap:6px;box-shadow:var(--sh)}
+.btn:hover{border-color:var(--pblue2);color:var(--pblue);transform:translateY(-1px)}
+.btn.p{background:var(--pblue);border-color:var(--pblue);color:#fff;box-shadow:0 4px 14px rgba(10,77,156,.3)}
+.btn.p:hover{background:var(--pblue2);color:#fff}
+.btn svg{width:14px;height:14px}
+
+.view{display:none}.view.on{display:block;animation:fade .4s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* hero / insight */
+.hero{background:linear-gradient(120deg,#06335f,#0a4d9c 55%,#0866c6);border-radius:20px;padding:22px 26px;margin:24px 0;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap;position:relative;overflow:hidden;box-shadow:var(--sh2)}
+.hero::after{content:"";position:absolute;right:-40px;top:-60px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 70%)}
+.hero .ic{width:48px;height:48px;border-radius:13px;background:rgba(255,255,255,.16);display:grid;place-items:center;flex-shrink:0}
+.hero .ic svg{width:26px;height:26px;stroke:#fff}
+.hero .htxt{flex:1;min-width:240px}
+.hero .htxt .h1{font-family:'Sora';font-weight:700;font-size:17px;line-height:1.3}
+.hero .htxt .h2{font-size:12.5px;opacity:.85;margin-top:3px}
+.hero .hper{display:flex;gap:24px}
+.hero .hper .p{text-align:center}
+.hero .hper .pv{font-family:'Sora';font-weight:800;font-size:26px;line-height:1}
+.hero .hper .pl{font-size:10.5px;opacity:.8;letter-spacing:.4px;text-transform:uppercase;margin-top:4px}
+
+/* threshold */
+.thbar{display:flex;align-items:center;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 18px;margin-bottom:20px;flex-wrap:wrap;box-shadow:var(--sh)}
+.thbar .tl{font-weight:700;font-size:12.5px;color:var(--pnavy);display:flex;align-items:center;gap:8px}
+.thbar .tl svg{width:16px;height:16px;stroke:var(--pblue)}
+.thbar .fld{display:flex;align-items:center;gap:8px}
+.thbar label{font-size:11px;color:var(--mut);font-weight:600}
+.thbar input{width:72px;background:#f5f9fd;border:1.5px solid var(--line);color:var(--pblue);font-family:'IBM Plex Mono';font-weight:700;font-size:14px;padding:6px 8px;border-radius:8px;text-align:center}
+.thbar input:focus{outline:none;border-color:var(--pblue2)}
+.thbar .tk{font-size:11px;color:var(--dim);margin-left:auto}
+.thbar .leg{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--mut);font-weight:600}
+.dot-g,.dot-y,.dot-r{width:9px;height:9px;border-radius:50%}
+.dot-g{background:var(--green)}.dot-y{background:var(--amber)}.dot-r{background:var(--red)}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:var(--sh);transition:.2s;animation:rise .5s both}
+.kpi:hover{transform:translateY(-3px);box-shadow:var(--sh2)}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.kpi .top{display:flex;align-items:center;gap:9px;margin-bottom:13px}
+.kpi .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex-shrink:0}
+.kpi .ic svg{width:18px;height:18px}
+.kpi .k{font-size:11px;font-weight:700;color:var(--mut);letter-spacing:.1px}
+.kpi .v{font-family:'Sora';font-weight:800;font-size:32px;letter-spacing:-1.2px;line-height:1;color:var(--pnavy)}
+.kpi .s{font-size:11px;color:var(--dim);margin-top:7px;font-weight:600}
+.ic-b{background:#e7f0fb}.ic-b svg{stroke:var(--pblue)}
+.ic-g{background:var(--greenbg)}.ic-g svg{stroke:var(--green)}
+.ic-a{background:var(--amberbg)}.ic-a svg{stroke:var(--amber)}
+.ic-r{background:var(--redbg)}.ic-r svg{stroke:var(--red)}
+.kpi.r .v{color:var(--red)}.kpi.a .v{color:#cf8400}
+
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-bottom:22px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:var(--sh)}
+.panel h2{font-family:'Sora';font-weight:700;font-size:14px;color:var(--pnavy);margin-bottom:2px}
+.panel .sub{font-size:11.5px;color:var(--dim);margin-bottom:18px;font-weight:500}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.gridline{stroke:var(--line);stroke-width:1}
+.axlab{fill:var(--mut);font-size:10px;font-family:'IBM Plex Mono'}
+.trend-line{fill:none;stroke:var(--pblue2);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.trend-area{fill:url(#ga)}.dot{fill:#fff;stroke:var(--pblue2);stroke-width:3}
+.vlab{fill:var(--pnavy);font-size:10.5px;font-family:'IBM Plex Mono';font-weight:700;text-anchor:middle}
+
+/* donut */
+.donut-wrap{display:flex;align-items:center;gap:18px}
+.donut{position:relative;flex-shrink:0}
+.donut svg{transform:rotate(-90deg)}
+.donut .ctr{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.donut .ctr .cv{font-family:'Sora';font-weight:800;font-size:26px;color:var(--pnavy);line-height:1}
+.donut .ctr .cl{font-size:10px;color:var(--mut);font-weight:600;margin-top:2px}
+.dleg{flex:1}
+.dleg .row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--line)}
+.dleg .row:last-child{border:none}
+.dleg .sw{width:11px;height:11px;border-radius:4px;flex-shrink:0}
+.dleg .lb{font-size:12.5px;font-weight:600;flex:1}
+.dleg .ct{font-family:'IBM Plex Mono';font-weight:700;font-size:13px}
+.dleg .pc{font-family:'IBM Plex Mono';font-size:11px;color:var(--mut);width:42px;text-align:right}
+
+.fbar{display:flex;align-items:center;gap:11px;margin-bottom:11px}
+.fbar .nm{width:78px;font-size:12px;font-weight:700;flex-shrink:0;cursor:pointer;color:var(--ink)}
+.fbar .nm:hover{color:var(--pblue)}
+.fbar .track{flex:1;height:24px;background:#f0f5fb;border-radius:7px;overflow:hidden}
+.fbar .fill{height:100%;border-radius:7px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.fbar .fv{font-family:'IBM Plex Mono';font-size:10.5px;font-weight:700;color:#fff}
+.fbar .cnt{width:30px;text-align:right;font-family:'IBM Plex Mono';font-size:11.5px;color:var(--mut);flex-shrink:0;font-weight:600}
+
+/* table dashboard */
+.tbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.tbar .ttl{font-family:'Sora';font-weight:700;font-size:17px;color:var(--pnavy);margin-right:auto}
+.search{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 14px;color:var(--ink);font-family:'Plus Jakarta Sans';font-size:13px;width:230px;box-shadow:var(--sh)}
+.search:focus{outline:none;border-color:var(--pblue2)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:#fff;border:1px solid var(--line);color:var(--mut);font-size:11.5px;font-weight:700;padding:7px 13px;border-radius:20px;cursor:pointer;transition:.15s;box-shadow:var(--sh)}
+.chip:hover{border-color:var(--pblue2);color:var(--pblue)}
+.chip.on{background:var(--pblue);border-color:var(--pblue);color:#fff}
+.chip.on.r{background:var(--red);border-color:var(--red)}
+.chip.on.y{background:var(--amber);border-color:var(--amber)}
+.chip.on.g{background:var(--green);border-color:var(--green)}
+.tcont{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--sh)}
+.tscroll{overflow:auto;max-height:600px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{position:sticky;top:0;background:#f5f9fd;color:var(--mut);font-weight:700;text-align:right;padding:12px 11px;font-size:10.5px;letter-spacing:.3px;text-transform:uppercase;cursor:pointer;white-space:nowrap;border-bottom:2px solid var(--line);user-select:none;z-index:2}
+thead th.l{text-align:left}thead th:hover{color:var(--pblue)}
+thead th .ar{color:var(--pblue)}
+tbody td{padding:11px 11px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+tbody td.l{text-align:left}tbody tr:hover{background:#f7fafe}
+.nmcell{font-weight:700;color:var(--pnavy)}.ttl-cell{color:var(--mut);font-size:11.5px;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.fg{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;padding:3px 8px;border-radius:6px;background:#eef3f9;color:var(--pblue);border:1px solid #dce7f3}
+.mc{font-family:'IBM Plex Mono';font-weight:600;border-radius:6px}
+.mc.g{color:#0c7a37}.mc.y{color:#b97c0a;background:var(--amberbg)}.mc.r{color:var(--red);background:var(--redbg)}
+.badge{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;padding:4px 10px;border-radius:20px}
+.badge.g{background:var(--greenbg);color:#0c7a37}.badge.y{background:var(--amberbg);color:#b97c0a}.badge.r{background:var(--redbg);color:var(--red)}
+.tot{font-family:'IBM Plex Mono';font-weight:700;color:var(--pnavy)}.empty{padding:54px;text-align:center;color:var(--dim)}
+.tfoot{padding:12px 18px;font-size:12px;color:var(--mut);border-top:1px solid var(--line);background:#f5f9fd;font-weight:600}
+.foot{text-align:center;color:var(--dim);font-size:11.5px;margin-top:32px;font-weight:600}
+.foot b{color:var(--mut)}
+
+/* manage */
+.ftabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.ftab{background:#fff;border:1px solid var(--line);color:var(--mut);font-family:'Sora';font-weight:700;font-size:12.5px;padding:10px 16px;border-radius:11px;cursor:pointer;transition:.18s;display:flex;align-items:center;gap:9px;box-shadow:var(--sh)}
+.ftab:hover{color:var(--pblue);transform:translateY(-1px)}
+.ftab.on{background:var(--pblue);border-color:var(--pblue);color:#fff;box-shadow:var(--sh2)}
+.ftab .b{font-family:'IBM Plex Mono';font-size:10.5px;font-weight:700;background:#eef3f9;color:var(--pblue);padding:1px 7px;border-radius:10px}
+.ftab.on .b{background:rgba(255,255,255,.25);color:#fff}
+.note{background:linear-gradient(120deg,#f5f9fd,#eef6ff);border:1px solid #dce9f7;border-left:4px solid var(--pblue);border-radius:14px;padding:15px 20px;margin-bottom:20px;font-size:12.5px;color:var(--mut);line-height:1.7}
+.note b{color:var(--pnavy)}.note .step{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--pblue);color:#fff;font-size:11px;font-weight:800;margin-right:5px}
+.mhead{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.mhead .mt{font-family:'Sora';font-weight:800;font-size:20px;color:var(--pnavy);margin-right:auto}
+.mhead .mt span{color:var(--pblue)}
+.mtable{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--sh)}
+.mscroll{overflow:auto;max-height:640px}
+table.mt2{border-collapse:collapse;font-size:12.5px;min-width:100%}
+table.mt2 thead th{position:sticky;top:0;background:#f5f9fd;color:var(--mut);font-weight:700;text-align:center;padding:12px 8px;font-size:10px;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;border-bottom:2px solid var(--line);z-index:2}
+table.mt2 thead th.l{text-align:left}
+table.mt2 tbody td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center}
+table.mt2 tbody tr:hover{background:#f7fafe}
+.cin{background:#f7fafe;border:1px solid transparent;color:var(--ink);font-family:'Plus Jakarta Sans';font-weight:600;font-size:12.5px;padding:8px 9px;border-radius:8px;width:100%;min-width:180px}
+.cin:hover{border-color:var(--line);background:#fff}.cin:focus{outline:none;border-color:var(--pblue2);background:#fff}
+.min{background:#f7fafe;border:1px solid transparent;color:var(--ink);font-family:'IBM Plex Mono';font-weight:700;font-size:12.5px;padding:8px 4px;border-radius:8px;width:64px;text-align:center}
+.min:hover{border-color:var(--line);background:#fff}.min:focus{outline:none;border-color:var(--pblue2);background:#fff}
+.min.g{color:#0c7a37}.min.y{color:#b97c0a;background:var(--amberbg)}.min.r{color:var(--red);background:var(--redbg)}
+.rowtot{font-family:'IBM Plex Mono';font-weight:700;font-size:13px;color:var(--pnavy)}
+.del{background:#fff;border:1px solid var(--line);color:var(--dim);width:30px;height:30px;border-radius:8px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;justify-content:center}
+.del:hover{border-color:var(--red);color:var(--red);background:var(--redbg)}.del svg{width:14px;height:14px}
+.mfoot{padding:14px 18px;border-top:1px solid var(--line);background:#f5f9fd;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mfoot .info{font-size:12px;color:var(--mut);margin-left:auto;font-weight:600}
+input[type=number]::-webkit-inner-spin-button{opacity:.3}
+@media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.hero{flex-direction:column;align-items:flex-start}}
+.yrseg{display:flex;gap:4px;margin-left:6px;background:#eaf1f9;padding:4px;border-radius:12px}
+.yrseg button{background:transparent;border:none;color:var(--mut);font-family:'Sora';font-weight:700;font-size:12.5px;padding:8px 15px;border-radius:9px;cursor:pointer;transition:.18s}
+.yrseg button:hover{color:var(--pblue)}
+.yrseg button.on{background:var(--pblue);color:#fff;box-shadow:var(--sh)}
+.yrseg button.addy{color:var(--green);font-size:15px;padding:8px 12px}
+.yrseg button.addy:hover{background:var(--greenbg);color:var(--green)}
+.yrtag{display:inline-block;font-family:'IBM Plex Mono';font-weight:700;font-size:11px;color:#fff;background:var(--pblue);padding:2px 9px;border-radius:7px;margin-left:6px}
+
+/* ringkasan per fungsi */
+.ftbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.ftbl th{text-align:right;color:var(--mut);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+.ftbl th.l{text-align:left}
+.ftbl td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.ftbl td.l{text-align:left;font-weight:700;color:var(--pnavy)}
+.ftbl tbody tr{cursor:pointer;transition:.12s}
+.ftbl tbody tr:hover{background:#f7fafe}
+.ftbl .hi{color:var(--red);font-weight:700}
+/* perlu perhatian */
+.alert-row{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--line)}
+.alert-row:last-child{border:none}
+.alert-rank{width:24px;height:24px;border-radius:8px;background:var(--redbg);color:var(--red);font-family:'IBM Plex Mono';font-weight:700;font-size:11px;display:grid;place-items:center;flex-shrink:0}
+.alert-rank.y{background:var(--amberbg);color:#b97c0a}
+.alert-nm{flex:1;min-width:0}
+.alert-nm .n{font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--pnavy)}
+.alert-nm .f{font-size:10.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alert-val{text-align:right;flex-shrink:0}
+.alert-val .v{font-family:'IBM Plex Mono';font-weight:700;font-size:14px}
+.alert-val .l{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.3px}
+.empty-cta{text-align:center;padding:24px 14px;color:var(--mut);font-size:13px;line-height:1.7}
+.empty-cta b{color:var(--pnavy)}
+/* sticky first columns in Kelola Data */
+.mt2 tbody td:nth-child(-n+3){position:sticky;background:#fff;z-index:1}
+.mt2 thead th:nth-child(-n+3){position:sticky;z-index:4}
+.mt2 td:nth-child(1),.mt2 th:nth-child(1){left:0}
+.mt2 td:nth-child(2),.mt2 th:nth-child(2){left:40px}
+.mt2 td:nth-child(3),.mt2 th:nth-child(3){left:240px;box-shadow:1px 0 0 var(--line)}
+.mt2 tbody tr:hover td:nth-child(-n+3){background:#f7fafe}
+/* print / pdf report */
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff}
+  header{position:static;box-shadow:none;border:none}
+  .nav,.tools,.yrseg,.thbar,.tbar,#view-manage,.tcont{display:none!important}
+  .brandbar{display:none}
+  .hero{box-shadow:none}.panel,.kpi{box-shadow:none;border:1px solid #d6dee8;break-inside:avoid}
+  .grid{break-inside:avoid}.wrap{padding:0}
+  @page{margin:12mm}
+}
+
+.fbchip{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--mut);background:#fff;border:1px solid var(--line);border-radius:20px;padding:6px 12px;box-shadow:var(--sh)}
+.fbdot{width:8px;height:8px;border-radius:50%;background:#9aa7b4;transition:.2s}
+.fbdot.on{background:var(--green);box-shadow:0 0 0 3px rgba(0,154,68,.18)}
+.fbdot.wait{background:var(--amber);box-shadow:0 0 0 3px rgba(245,166,35,.18)}
+.fbdot.err{background:var(--red);box-shadow:0 0 0 3px rgba(228,0,43,.18)}
+@media print{.fbchip{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="head-in">
+    <div class="brand">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+      <div><div class="nm">Monitoring Jam Lembur</div><div class="tag" id="headTag">Dashboard Operasional</div></div>
+    </div>
+    <div class="nav">
+      <button id="navDash" class="on" onclick="showView('dash')">Dashboard</button>
+      <button id="navManage" onclick="showView('manage')">Kelola Data</button>
+    </div>
+    <div class="yrseg" id="yrseg"></div>
+    <div class="tools">
+      <span class="fbchip"><span class="fbdot off" id="fbDot"></span><span id="fbTxt">Cloud</span></span>
+      <button class="btn" onclick="fbPushAll(true)" title="Kirim data saat ini ke cloud (realtime untuk semua)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 16l-4-4-4 4M12 12v9"/><path d="M20.4 14.9A5 5 0 0018 5.5 7 7 0 004.5 8 4.5 4.5 0 005 17h1"/></svg>Kirim ke Cloud</button>
+      <span class="saveind" id="saveInd"></span>
+      <button class="btn" onclick="exportJSON()" title="Simpan data sebagai file .json"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Ekspor</button>
+      <button class="btn" onclick="document.getElementById('impx').click()" title="Impor 1 file Excel berisi semua fungsi (tiap fungsi = sheet)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3v4a1 1 0 001 1h4"/><path d="M5 3h9l5 5v11a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/><path d="M8 13l3 3 3-4"/></svg>Impor Excel</button>
+      <input type="file" id="impx" accept=".xlsx,.xls" multiple style="display:none">
+      <button class="btn" onclick="window.print()" title="Cetak / simpan PDF (laporan ringkas)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-3a2 2 0 012-2h16a2 2 0 012 2v3a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>Cetak</button>
+      <button class="btn" onclick="document.getElementById('imp').click()" title="Muat seluruh data dari file .json (mengganti semua)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9m0 0L8 13m4-4l4 4M5 3h14"/></svg>Impor JSON</button>
+      <input type="file" id="imp" accept=".json" style="display:none">
+      <button class="btn" onclick="exportCSV()" title="Ekspor untuk Excel">CSV</button>
+      <button class="btn p" onclick="downloadHTML()" title="Unduh file HTML berisi data terbaru"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Unduh HTML</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- DASHBOARD -->
+  <div class="view on" id="view-dash">
+    <div class="hero">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div>
+      <div class="htxt"><div class="h1" id="heroLine">Ringkasan beban lembur</div><div class="h2" id="heroSub">Memuat…</div></div>
+      <div class="hper" id="heroPills"></div>
+    </div>
+
+    <div class="thbar">
+      <div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Ambang Batas</div>
+      <div class="fld"><label>Perhatian</label><input id="tWatch" type="number" value="220" min="0" step="10"></div>
+      <div class="fld"><label>Tinggi</label><input id="tHigh" type="number" value="300" min="0" step="10"></div>
+      <span class="leg"><span class="dot-g"></span>Aman</span>
+      <span class="leg"><span class="dot-y"></span>Perhatian</span>
+      <span class="leg"><span class="dot-r"></span>Tinggi</span>
+      <span class="tk">Status = rata-rata jam lembur per <b>bulan terisi</b> pada tahun terpilih</span>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid">
+      <div class="panel chart">
+        <h2>Tren Total Jam Lembur per Bulan</h2><div class="sub" id="trendSub">Akumulasi seluruh fungsi</div>
+        <div id="trend"></div>
+      </div>
+      <div class="panel">
+        <h2>Distribusi Status Karyawan</h2><div class="sub">Berdasarkan rata-rata jam lembur / bulan</div>
+        <div class="donut-wrap"><div class="donut" id="donut"></div><div class="dleg" id="dleg"></div></div>
+      </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="panel">
+        <h2>Rata-rata Jam Lembur per Fungsi</h2><div class="sub">Klik nama fungsi untuk mengelola timnya (jam / orang / bulan)</div>
+        <div id="fbars"></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>Ringkasan per Fungsi</h2><div class="sub">Klik baris untuk mengelola fungsi tersebut</div>
+        <div style="overflow:auto"><table class="ftbl"><thead><tr><th class="l">Fungsi</th><th>Org</th><th>Total Jam</th><th>Rata2/bln</th><th>Tinggi</th></tr></thead><tbody id="fsumbody"></tbody></table></div>
+      </div>
+      <div class="panel">
+        <h2>Perlu Perhatian</h2><div class="sub">Beban lembur tertinggi pada tahun terpilih</div>
+        <div id="alerts"></div>
+      </div>
+    </div>
+
+    <div class="tbar">
+      <div class="ttl">Data Karyawan</div>
+      <input class="search" id="search" placeholder="Cari nama / jabatan…">
+      <div class="chips" id="fungsiChips"></div>
+      <div class="chips" id="statusChips"></div>
+    </div>
+    <div class="tcont">
+      <div class="tscroll"><table><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+      <div class="tfoot" id="tfoot"></div>
+    </div>
+  </div>
+
+  <!-- KELOLA -->
+  <div class="view" id="view-manage">
+    <div class="note">
+      <b>Panduan admin fungsi:</b><br>
+      <span class="step">1</span>Pilih fungsi Anda di bawah &nbsp; <span class="step">2</span>Isi jam lembur tiap bulan langsung di tabel (otomatis tersimpan) &nbsp; <span class="step">3</span>Klik <b>+ Tambah Karyawan</b> / ikon hapus untuk mengubah daftar &nbsp; <span class="step">4</span>Klik <b>Unduh HTML</b> atau <b>Ekspor</b> di kanan atas lalu kirim ke pengelola pusat. Status &amp; dashboard menyesuaikan otomatis.
+    </div>
+    <div class="ftabs" id="ftabs"></div>
+    <div class="mhead">
+      <div class="mt">Fungsi <span id="mFungsi">GS</span> <span class="yrtag" id="mYear">2025</span></div>
+      <button class="btn p" onclick="addPerson()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>Tambah Karyawan</button>
+    </div>
+    <div class="mtable">
+      <div class="mscroll"><table class="mt2"><thead><tr id="mthead"></tr></thead><tbody id="mbody"></tbody></table></div>
+      <div class="mfoot"><button class="btn" onclick="addPerson()">+ Tambah Karyawan</button><span class="info" id="minfo"></span></div>
+    </div>
+  </div>
+
+  <div class="foot">Alat bantu monitoring internal &middot; sumber awal: sheet "Summary Jam Lembur" &middot; <b>10 fungsi &middot; 6 bulan</b></div>
+</div>
+
+<script>
+const RAW = /*RAW_START*/[["GS", "Karmila", "Petugas Fasilitas Umum", {"2026": [219.5, 209.0, 190.0, 268.5, 220.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Setyo Widiantoro", "Petugas Fasilitas Umum", {"2026": [140.0, 185.0, 175.5, 180.5, 125.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Sutar", "Petugas Fasilitas Umum", {"2026": [81.0, 144.5, 155.5, 185.5, 108.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Jamaluddin", "Membantu perawatan aset fasilitas umum", {"2026": [112.0, 139.0, 133.0, 107.5, 124.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Abidin", "Pengawas Pekerjaan petugas kebersihan", {"2026": [42.0, 51.0, 51.0, 76.0, 51.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Sugeng Rivai", "Pengawas Pekerjaan petugas kebersihan", {"2026": [17.0, 68.0, 68.0, 96.5, 68.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Khairil Anwar", "Membantu perawatan aset fasilitas umum", {"2026": [41.5, 70.0, 97.5, 173.5, 40.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Suprianto", "Membantu perawatan aset fasilitas umum", {"2026": [17.0, 93.0, 46.5, 51.0, 44.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Rudiansyah", "Petugas Fasilitas Umum", {"2026": [43.0, 58.0, 46.5, 45.5, 65.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Milariani", "Tukang Parit Mess Merah", {"2026": [37.0, 89.5, 141.5, 67.5, 96.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Ahmad Hariyanto", "Asisten Tekhnisi Listrik", {"2026": [73.0, 90.5, 114.5, 181.5, 79.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Alamsyah", "Pemuka Fasilitas Umum", {"2026": [51.0, 0.0, 51.0, 0.0, 34.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Muhammad Abuzhar Alghifari", "Petugas Fasilitas Umum", {"2026": [33.5, 17.0, 54.5, 51.0, 161.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Nur Rizki Bayu Pebrianto", "Petugas Fasilitas Umum", {"2026": [27.5, 58.0, 26.0, 47.5, 61.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Desy Putri R", "Petugas Fasilitas Umum", {"2026": [16.5, 31.0, 18.5, 44.5, 13.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["GS", "Sitti  Octaviani", "Petugas Fasilitas Umum", {"2026": [0.0, 0.0, 0.0, 9.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "KORDIANUS H.", "Pembantu Ops 2 SP", {"2026": [99.0, 99.0, 165.0, 297.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "RUSLIYANTO", "Pembantu Ops 2 SP", {"2026": [198.0, 165.0, 165.0, 198.0, 208.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "PURWANTO SGT", "Pembantu Ops 2 SP", {"2026": [198.0, 198.0, 132.0, 231.0, 165.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ARIANTO", "Pembantu Ops 4 SP", {"2026": [132.0, 132.0, 231.0, 231.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "SUBANDI", "Pembantu Ops 4 SP", {"2026": [140.0, 132.0, 99.0, 198.0, 109.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "M. JUMBERI", "Pembantu Ops 4 SP", {"2026": [198.0, 132.0, 99.0, 99.0, 109.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "BOYANTO", "Pembantu Ops 5 SP", {"2026": [132.0, 165.0, 99.0, 169.0, 109.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "GILANG RIZKY", "Pembantu Ops 4 SP", {"2026": [132.0, 66.0, 132.0, 66.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "HASRULLAH", "Pembantu Ops 5 SP", {"2026": [132.0, 165.0, 165.0, 264.0, 106.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "SURYONO", "Pembantu Ops 6 SP", {"2026": [132.0, 33.0, 165.0, 99.0, 142.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "HENCE", "Pembantu Ops 6 SP", {"2026": [132.0, 132.0, 132.0, 165.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "DANIEL", "Pembantu Ops 6 SP", {"2026": [231.0, 165.0, 99.0, 198.0, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "JUMADI SASA", "Lindung Lingkungan", {"2026": [102.0, 102.0, 68.0, 102.0, 119.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ABDULLAH", "Lindung Lingkungan", {"2026": [84.0, 290.0, 85.0, 204.5, 109.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ABDUL KARIM", "Lindung Lingkungan", {"2026": [108.0, 290.0, 34.0, 180.0, 68.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "JHONLI YOSUA", "Lindung Lingkungan", {"2026": [36.5, 215.0, 34.0, 220.5, 58.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "YULEMAN", "Pembantu Ops Loading Terminal", {"2026": [165.0, 298.0, 165.0, 231.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "SUGITO", "Pembantu Ops Loading Terminal", {"2026": [165.0, 157.0, 66.0, 231.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "FANDIK", "Pembantu Ops Loading Terminal", {"2026": [33.0, 297.0, 264.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "HARTONO", "Pembantu Ops SP", {"2026": [70.0, 162.0, 8.0, 35.0, 156.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "HELMI", "Pembantu Ops SP", {"2026": [264.0, 99.0, 66.0, 165.0, 43.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "SUMALI", "Petugas Vacum Truck", {"2026": [99.0, 99.0, 33.0, 165.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "JUNAIDI", "Pembantu Ops WIP", {"2026": [0.0, 165.0, 0.0, 179.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "MUSLIM", "Pembantu Ops WIP", {"2026": [0.0, 0.0, 132.0, 33.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ARIFIN", "Pembantu Ops WIP", {"2026": [0.0, 33.0, 0.0, 0.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "SYAHRIL", "Pembantu Ops Well Cheker", {"2026": [165.0, 165.0, 66.0, 132.0, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "YAYAN C.", "Pembantu Ops Well Cheker", {"2026": [99.0, 198.0, 33.0, 33.0, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ERWIN", "Pembantu Ops Well Cheker", {"2026": [198.0, 99.0, 132.0, 132.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "JUFRI", "Pembantu Ops Well Cheker", {"2026": [132.0, 231.0, 66.0, 165.0, 109.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "JAINURI", "Pembantu Ops Well Cheker", {"2026": [66.0, 99.0, 0.0, 179.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "KASPUL", "Pembantu Ops 1 SP", {"2026": [132.0, 198.0, 132.0, 165.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "PURWANTO KILO", "Pembantu Ops 1 SP", {"2026": [165.0, 99.0, 66.0, 33.0, 109.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "HENDRA", "Pembantu Ops 1 SP", {"2026": [107.0, 198.0, 99.0, 231.0, 109.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "FIRMAN", "Asisten Ops. Sumur & Line Checker", {"2026": [0.0, 161.0, 128.0, 62.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "MUHAMMAD ABIDIN", "Pembantu Line/Pipe Checker", {"2026": [0.0, 33.0, 0.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "SAMSU RIADI", "Asisten Ops. Sumur & Line Checker", {"2026": [124.5, 66.0, 45.0, 79.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "M. ALI HANAFIA", "", {"2026": [211.5, 213.0, 114.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "EDI MUSRANI", "Operator Jargas MRS Sambutan", {"2026": [84.0, 21.0, 84.0, 84.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ALIANSYAH", "Asisten Ops. Sumur & Line Checker", {"2026": [112.5, 79.5, 120.5, 91.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ARIF HIDAYATULLAH", "Asisten Ops. Sumur & Line Checker", {"2026": [85.0, 113.0, 38.0, 92.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ARIS", "Asisten Ops. Sumur & Line Checker", {"2026": [74.0, 74.0, 16.0, 37.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ARIS AHMAD", "Asisten Ops. Sumur & Line Checker", {"2026": [87.5, 66.0, 32.5, 176.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "HUSAIN", "Asisten Ops. Sumur & Line Checker", {"2026": [74.0, 107.0, 82.0, 74.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "REZA AFANDI", "Pembantu Ops MGS", {"2026": [165.0, 33.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ANANG WAHYUDI", "Pembantu Line/Pipe Checker", {"2026": [126.0, 73.0, 105.0, 168.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "MASRUNI", "Pembantu Ops MGS", {"2026": [122.5, 165.0, 264.0, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "HERI SULISTIYO", "Asisten Ops. Sumur & Line Checker", {"2026": [120.5, 71.5, 54.5, 118.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ANDI IWAN NOOR MS", "Asisten Ops. Sumur & Line Checker", {"2026": [83.5, 79.0, 19.0, 74.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "YOYOK WIBOWO", "Asisten Ops. Sumur & Line Checker", {"2026": [126.0, 77.0, 60.0, 118.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "FAUZI ARRIZAL", "Operator Jargas MRS Sambutan", {"2026": [105.0, 21.0, 126.0, 84.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "INDHIT BRAM DERRY", "Pembantu Ops MGS", {"2026": [198.0, 47.0, 132.0, 41.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "Saiman", "Petugas Vacum Truck", {"2026": [135.0, 165.0, 99.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "MUHLIS ALAMSYAH", "Petugas Gudang & Yard", {"2026": [203.5, 67.0, 21.0, 70.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "MUHAMMAD NOOR", "Operator Jargas MRS Sambutan", {"2026": [42.0, 0.0, 0.0, 63.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ABDUL ASIS", "Asisten Teknisi Mekanik", {"2026": [153.0, 129.0, 85.0, 114.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "HENDRIK ISMAWAN", "Lindung Lingkungan", {"2026": [128.0, 139.0, 55.0, 95.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "IBRAHIM NUR", "Pembantu Line/Pipe Checker", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "ALDI", "Pembantu Juru Las", {"2026": [172.5, 168.0, 73.5, 88.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "SAMSUDDIN", "Pembantu Teknisi Mekanik", {"2026": [242.0, 269.5, 115.5, 149.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "SUHARDI", "Juru Las I", {"2026": [200.0, 180.5, 107.5, 149.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "MOHAMMAD HADNAN", "Pembantu Line/Pipe Checker", {"2026": [196.0, 93.5, 135.5, 173.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "PUNARSIHATI", "Admin Semberah", {"2026": [168.0, 141.5, 88.0, 105.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "AGUSTINUS S", "Petugas Bengkel Mekanik", {"2026": [171.5, 221.5, 107.5, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "SULTAN HASANUDDIN", "Petugas Bengkel Mekanik", {"2026": [140.5, 126.0, 73.5, 71.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "NURIYAH", "Office Girl", {"2026": [48.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "NUR ASIKIN", "Petugas Bengkel Mekanik", {"2026": [130.5, 160.0, 73.5, 71.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "EKO SUBIANTO", "Asisten Teknisi Sipil", {"2026": [44.0, 61.0, 22.5, 39.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "FAJAR MUSTHAFA", "", {"2026": [251.5, 279.0, 238.5, 222.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["PO", "AGUS SALIM", "Asisten Ops. Sumur & Line Checker", {"2026": [34.0, 34.0, 66.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Zainuddin", "Danru", {"2026": [33.0, 6.0, 0.0, 107.0, 67.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Suwito", "Wadanru", {"2026": [33.0, 0.0, 0.0, 74.0, 77.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Agus Suprianto", "Anggota", {"2026": [0.0, 0.0, 0.0, 41.0, 35.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Ahmad Junaidi", "Anggota", {"2026": [0.0, 6.0, 0.0, 41.0, 41.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Ali Rachmad", "Anggota", {"2026": [33.0, 17.5, 0.0, 8.0, 68.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Budi Sunardiono", "Anggota", {"2026": [0.0, 0.0, 0.0, 33.0, 36.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Cipto", "Anggota", {"2026": [33.0, 0.0, 0.0, 41.0, 44.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Eko Anggra Novianto", "Anggota", {"2026": [0.0, 0.0, 0.0, 8.0, 41.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Eko Pudji Santoso", "Anggota", {"2026": [33.0, 0.0, 0.0, 41.0, 68.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Hargunansyah", "Anggota", {"2026": [33.0, 0.0, 0.0, 74.0, 44.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Heri Kustriono", "Anggota", {"2026": [0.0, 33.0, 0.0, 41.0, 44.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "I Bagus Seputro", "Anggota", {"2026": [33.0, 0.0, 0.0, 41.0, 68.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Imam Nasihin", "Anggota", {"2026": [0.0, 0.0, 0.0, 41.0, 35.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Jhon Preser", "Anggota", {"2026": [0.0, 0.0, 0.0, 8.0, 11.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Jufriadi", "Anggota", {"2026": [0.0, 33.0, 0.0, 41.0, 44.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Juniawan Wahyu Purnomo", "Anggota", {"2026": [67.0, 0.0, 34.0, 17.0, 142.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Juwarianto", "Anggota", {"2026": [33.0, 6.0, 0.0, 41.0, 35.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Mardan", "Anggota", {"2026": [0.0, 6.0, 0.0, 41.0, 44.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Rahmat Hidayat", "Anggota", {"2026": [0.0, 39.0, 0.0, 74.0, 35.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Rezal Azwar", "Anggota", {"2026": [33.0, 6.0, 0.0, 41.0, 36.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Rudi Syahputra", "Anggota", {"2026": [0.0, 50.5, 0.0, 41.0, 44.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Syarifuddin", "Anggota", {"2026": [33.0, 0.0, 0.0, 41.0, 44.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Vito Rahman", "Anggota", {"2026": [0.0, 0.0, 0.0, 41.0, 67.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Arianto", "Danru", {"2026": [0.0, 0.0, 7.5, 33.0, 46.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Jamal", "Wadanru", {"2026": [0.0, 0.0, 7.5, 33.0, 79.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Abi Halimdan", "Anggota", {"2026": [0.0, 0.0, 7.5, 0.0, 41.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Ade Putra Hermawan", "Anggota", {"2026": [0.0, 0.0, 7.5, 0.0, 46.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Agusnan", "Anggota", {"2026": [0.0, 0.0, 7.5, 33.0, 41.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Ahmad Saputra", "Anggota", {"2026": [0.0, 0.0, 7.5, 0.0, 5.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Ajang", "Anggota", {"2026": [0.0, 33.0, 7.5, 0.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Akhmad Junaidi", "Anggota", {"2026": [0.0, 0.0, 7.5, 0.0, 27.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Andi Tomi", "Anggota", {"2026": [0.0, 23.5, 7.5, 0.0, 46.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Hasan", "Anggota", {"2026": [0.0, 8.0, 7.5, 66.0, 38.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Hasanuddin", "Anggota", {"2026": [0.0, 0.0, 7.5, 33.0, 70.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Muhammad Ifan Fadhillah", "Anggota", {"2026": [0.0, 0.0, 7.5, 0.0, 46.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Muhammad Nurmin", "Anggota", {"2026": [0.0, 0.0, 7.5, 0.0, 70.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Muhammad Nurul Huda", "Anggota", {"2026": [0.0, 0.0, 7.5, 33.0, 70.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Nanang Widayanto", "Anggota", {"2026": [0.0, 0.0, 7.5, 0.0, 38.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Natal Ramses Amran Manalu", "Anggota", {"2026": [0.0, 56.5, 7.5, 0.0, 46.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Rian Prasetio", "Anggota", {"2026": [0.0, 0.0, 7.5, 0.0, 46.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Ridwan Amier", "Anggota", {"2026": [0.0, 0.0, 7.5, 33.0, 31.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Rino Desando Simorangkir", "Anggota", {"2026": [6.0, 0.0, 23.0, 8.0, 71.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Safaruddin", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Sugiarto", "Anggota", {"2026": [0.0, 0.0, 7.5, 0.0, 46.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Supriadi", "Anggota", {"2026": [0.0, 0.0, 7.5, 33.0, 70.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Tison", "Anggota", {"2026": [0.0, 8.0, 0.0, 0.0, 41.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Yuda Guntur Ariawan", "Anggota", {"2026": [3.5, 0.0, 7.5, 33.0, 54.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Ramli", "Danru", {"2026": [33.0, 55.0, 23.5, 23.5, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Paryadi", "Wadanru", {"2026": [33.0, 14.0, 23.5, 0.0, 124.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Adi Susanto", "Anggota", {"2026": [0.0, 8.0, 23.5, 0.0, 33.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Agus", "Anggota", {"2026": [33.0, 41.0, 0.0, 0.0, 43.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Agustinus", "Anggota", {"2026": [0.0, 8.0, 23.5, 10.0, 76.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Ahmad Giswan", "Anggota", {"2026": [0.0, 14.0, 23.5, 10.0, 68.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Amat", "Anggota", {"2026": [33.0, 41.0, 0.0, 23.5, 48.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Anang Prasetyo", "Anggota", {"2026": [0.0, 8.0, 0.0, 23.5, 33.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Budi Hartono", "Anggota", {"2026": [0.0, 14.0, 0.0, 0.0, 109.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Effin Tolaar", "Anggota", {"2026": [0.0, 8.0, 23.5, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Fadli", "Anggota", {"2026": [0.0, 14.0, 0.0, 23.5, 68.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Fransiskus De Sales", "Anggota", {"2026": [0.0, 8.0, 23.5, 10.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Junaidi", "Anggota", {"2026": [0.0, 8.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Lukman Nul Hakim", "Anggota", {"2026": [0.0, 33.0, 8.0, 0.0, 56.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Mardiono", "Anggota", {"2026": [0.0, 31.5, 0.0, 0.0, 43.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Muh. Agus", "Anggota", {"2026": [0.0, 41.0, 0.0, 0.0, 68.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Muhammad Hariyono", "Anggota", {"2026": [0.0, 14.0, 0.0, 0.0, 66.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Muhammad Idris", "Anggota", {"2026": [0.0, 8.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Rappe", "Anggota", {"2026": [0.0, 0.0, 8.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Rusdi", "Anggota", {"2026": [0.0, 8.0, 0.0, 0.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Sindu Pranoto", "Anggota", {"2026": [0.0, 8.0, 23.5, 10.0, 33.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Slamet Wahyudi", "Anggota", {"2026": [0.0, 8.0, 23.5, 0.0, 33.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Sweta Ariadinata", "Anggota", {"2026": [10.0, 8.0, 59.0, 0.0, 109.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Syaiful Lizan", "Anggota", {"2026": [33.0, 31.5, 0.0, 23.5, 33.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Muhammad Nurdin", "Danru", {"2026": [66.0, 0.0, 0.0, 0.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Supriyadi", "Wadanru", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Syamsuriadi", "Wadanru", {"2026": [0.0, 17.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Apolonius Longan", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Arif Purahman", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Even Pariska", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Hendro Daya L", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "M. Masse", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Mahfud Nizar", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Suwenson Bilung", "Danru", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Mulyadi", "Danru", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Azwar Hadi", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Muhamad Rusli Pruyanto", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Oli Yanto", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Salim", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Yustan Tambing", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Yunus Mambela", "Danru", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Sugiantoro", "Wadanru", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Didit Wiyono", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Ishak Levi Langi", "Anggota", {"2026": [0.0, 17.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Maride", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Security", "Mulyani", "Anggota", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Triono", "Pemuka F&S", {"2026": [0.0, 83.0, 80.5, 40.5, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Rahmat Wahyu", "Petugas Inspeksi", {"2026": [80.0, 99.0, 126.0, 139.5, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Jamal", "Petugas Lindungan Lingkungan", {"2026": [80.0, 66.0, 120.5, 17.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Rezky Tammara", "Petugas Lindungan Lingkungan", {"2026": [80.0, 149.0, 184.5, 182.5, 182.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Musli", "Petugas Lindungan Lingkungan", {"2026": [66.0, 83.0, 99.0, 83.0, 83.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Naing", "Pemuka F&S", {"2026": [70.5, 83.0, 0.0, 83.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Paul Tamasai", "Pemuka F&S", {"2026": [70.5, 83.0, 152.5, 50.0, 87.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Muhasib", "Petugas Lindungan Lingkungan", {"2026": [70.5, 83.0, 70.5, 50.0, 87.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Roni", "Petugas Lindungan Lingkungan", {"2026": [0.0, 66.0, 165.0, 40.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Sulaiman", "Petugas Inspeksi", {"2026": [89.5, 99.0, 132.5, 83.0, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Muhyidin", "Petugas Inspeksi", {"2026": [89.5, 66.0, 46.5, 17.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["HSSE", "Fatkhul Huda", "Pemuka F&S", {"2026": [89.5, 66.0, 34.0, 17.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Syahrial", "Pembantu Ops. Genset/Power Plant/Turbin", {"2026": [0.0, 0.0, 116.0, 135.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Yahya", "Pembantu Ops. Genset/Power Plant/Turbin", {"2026": [16.0, 0.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Nur Saleh", "Pembantu Ops. WTP/WIP", {"2026": [0.0, 226.0, 229.5, 157.5, 48.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Bambang Anggoro", "Pembantu Ops. WTP/WIP", {"2026": [0.0, 75.0, 167.0, 157.5, 48.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Edi Suprapto", "Pembantu Ops. Genset/Power Plant/Turbin", {"2026": [0.0, 0.0, 132.0, 157.5, 15.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Rudiansyah", "Pembantu Ops. Genset/Power Plant/Turbin", {"2026": [0.0, 20.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Abdul Rahim WPS", "Pembantu Ops. Genset/Power Plant/Turbin", {"2026": [33.0, 0.0, 99.0, 150.0, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Suyono", "Pembantu Ops. WPS", {"2026": [147.5, 135.5, 127.5, 0.0, 215.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Dhany", "Pembantu Ops. WPS", {"2026": [179.0, 96.5, 157.0, 0.0, 345.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Tarmuji", "Pembantu Ops. WPS", {"2026": [0.0, 306.0, 21.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Muhammad Rizal", "Pembantu Ops. Genset/Power Plant/Turbin", {"2026": [195.5, 246.0, 345.0, 0.0, 447.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Muhammad Alfi Yosi", "Pembantu Ops. Genset/Power Plant/Turbin", {"2026": [0.0, 0.0, 66.0, 142.5, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Naharuddin", "Pembantu Ops. Genset/Power Plant/Turbin", {"2026": [281.0, 235.5, 345.5, 0.0, 468.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Purwandi", "Asisten Teknisi Mekanik", {"2026": [354.5, 370.0, 305.0, 425.5, 381.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Eko Narwandi", "Asisten Teknisi Mekanik", {"2026": [398.5, 462.0, 376.0, 496.0, 407.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Harsono", "Pembantu Teknisi Mekanik", {"2026": [91.0, 396.0, 198.0, 165.0, 106.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Hasanuddin", "Asisten Teknisi Mekanik", {"2026": [409.0, 423.5, 492.5, 592.5, 427.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Wahyu Trianto", "Pembantu Teknisi Mekanik", {"2026": [199.0, 355.0, 195.0, 165.0, 198.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Mulyono", "Asisten Teknisi Mekanik", {"2026": [278.0, 382.0, 228.0, 327.5, 257.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Taufik Rahman", "Juru Las I", {"2026": [168.5, 249.0, 177.5, 175.0, 198.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "M. Ruksuk", "Juru Las I", {"2026": [191.5, 278.0, 282.0, 287.0, 342.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Surya", "Petugas Bengkel Mekanik", {"2026": [253.5, 340.0, 270.5, 323.5, 335.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Agusti", "Petugas Bengkel Mekanik", {"2026": [307.0, 303.0, 278.0, 294.0, 345.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Abd. Mujahid", "Petugas Bengkel Mekanik", {"2026": [33.0, 99.0, 66.0, 66.0, 106.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "M. Syaichul I", "Petugas Bengkel Mekanik", {"2026": [309.0, 343.0, 318.5, 356.0, 322.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Riki", "Petugas Bengkel Mekanik", {"2026": [105.0, 223.5, 248.5, 150.5, 223.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Rahmat Saleh", "Petugas Bengkel Mekanik", {"2026": [399.0, 357.0, 404.0, 502.0, 413.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "M. Iqbal Sirath", "Petugas Bengkel Mekanik", {"2026": [270.0, 307.0, 116.5, 0.0, 343.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "M. Rizaq Kurniawan", "Petugas Bengkel Mekanik", {"2026": [71.5, 110.0, 103.5, 147.5, 189.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "L. Sitanggang", "Asisten Teknisi Mekanik", {"2026": [213.0, 234.0, 237.0, 224.0, 223.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Syahroni", "Asisten Teknisi Mekanik", {"2026": [219.0, 321.0, 222.5, 315.0, 263.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Sutrisno A.", "Asisten Teknisi Mekanik", {"2026": [178.0, 234.0, 231.0, 224.0, 207.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Junaidi", "Asisten Teknisi Mekanik", {"2026": [168.5, 164.5, 147.0, 73.5, 59.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Ahmad Wahyudi", "Petugas Bengkel Mekanik", {"2026": [99.0, 99.0, 66.0, 66.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Firmansyah", "Pembantu Teknisi Mekanik", {"2026": [206.0, 292.0, 148.5, 120.0, 198.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Rahmat Hidayat", "Petugas Bengkel Mekanik", {"2026": [169.0, 205.0, 131.5, 176.5, 113.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Syaiful Hadi", "Ops. Alat Berat", {"2026": [238.5, 199.5, 206.5, 361.0, 130.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Durahman", "Pembantu Teknik Sipil", {"2026": [217.5, 245.0, 266.0, 361.0, 104.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "M. Nur Fauzi", "Pembantu Teknik Sipil", {"2026": [183.0, 205.5, 192.5, 361.0, 13.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Parniadi", "Pembantu Teknik Sipil", {"2026": [204.0, 192.5, 206.5, 361.0, 114.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Paimin", "Juru Ukur Topografi", {"2026": [223.0, 192.5, 206.5, 361.0, 112.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Eko Yulianto", "Pengemudi Truck", {"2026": [140.0, 199.5, 189.0, 361.0, 130.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Rian Juniando Simorangkir", "Pengemudi Truck", {"2026": [234.5, 273.0, 268.0, 361.0, 151.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Nur Aeny", "Petugas Admin I", {"2026": [0.0, 0.0, 28.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "M. Andi Sofyan Nur", "Pembantu Teknik Sipil", {"2026": [210.0, 275.5, 263.5, 361.0, 112.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Setyo Budi Waluyo", "Pembantu Teknik Sipil", {"2026": [249.0, 245.0, 262.5, 361.0, 145.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "M. Andryan Fatrah", "Pembantu Teknik Sipil", {"2026": [154.5, 143.5, 199.5, 347.0, 101.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Syarifuddin", "Pembantu Teknisi Elektrik", {"2026": [223.0, 254.0, 284.0, 320.5, 299.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Hairul Anwar", "Pembantu Teknisi Elektrik", {"2026": [343.0, 293.0, 287.5, 156.5, 320.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Reo Andhika", "Pembantu Teknisi Elektrik", {"2026": [212.0, 283.5, 236.5, 384.0, 288.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Imam M.", "Petugas Bengkel Elektrik", {"2026": [224.0, 176.0, 272.5, 23.0, 291.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Sutrisno", "Pembantu Teknisi Elektrik", {"2026": [149.5, 276.0, 272.0, 324.0, 211.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Firmansyah", "Pembantu Teknisi Elektrik", {"2026": [192.0, 233.5, 251.5, 360.0, 265.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["RAM", "Rizky Achmad S.", "Pembantu Teknisi Elektrik", {"2026": [278.0, 247.5, 269.5, 323.0, 265.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Jumatul Akbar", "Operator Alat Berat", {"2026": [107.0, 165.0, 66.0, 99.0, 43.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Yudi Santoso", "Petugas vacum", {"2026": [99.0, 33.0, 165.0, 99.0, 75.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Retno Adi Mirawan", "Operator Alat Berat", {"2026": [206.0, 99.0, 165.0, 132.0, 109.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Hairul Ansar", "Helper AB3", {"2026": [228.5, 211.5, 209.0, 285.5, 227.5, 276.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Robi Iswanto", "Petugas vacum", {"2026": [99.0, 99.0, 66.0, 66.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Sumadi", "Operator Crane", {"2026": [237.5, 181.0, 236.5, 304.0, 149.0, 363.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Saiman", "Petugas vacum", {"2026": [8.0, 66.0, 0.0, 99.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Sahrul Gunawan", "Petugas Gudang / Yard", {"2026": [160.0, 161.5, 169.5, 252.0, 178.5, 258.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Rellus Situmorang", "Petugas Gudang / Yard", {"2026": [37.5, 145.0, 177.5, 184.0, 157.5, 139.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Teguh Ebit Toni", "Petugas Gudang / Yard", {"2026": [207.5, 223.0, 195.0, 309.5, 243.0, 335.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Angga Saputra", "Helper AB3", {"2026": [203.5, 193.0, 203.0, 284.0, 161.0, 323.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Yoyok Sugianto", "Helper AB2", {"2026": [184.0, 210.5, 243.5, 222.0, 161.0, 323.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Tamsul", "Helper AB2", {"2026": [191.0, 181.5, 193.0, 298.5, 194.0, 266.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Moh. Mulyanto", "Petugas Gudang / Yard", {"2026": [138.5, 164.0, 177.0, 281.0, 184.5, 228.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Ansa", "Helper AB2", {"2026": [158.5, 216.5, 136.0, 223.0, 192.0, 172.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Rifki Ardiansyah", "Pembantu Ops. Lifting Equipment", {"2026": [17.0, 209.5, 257.0, 95.5, 210.5, 236.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Riki Rahman", "Helper AB2", {"2026": [205.5, 120.5, 21.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Amiruddin", "Helper AB2", {"2026": [158.0, 292.5, 180.0, 329.0, 247.5, 160.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Surya Sanjaya", "Petugas Admin II", {"2026": [100.0, 162.0, 193.0, 217.0, 191.5, 268.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Teddy Santaruhannu", "Petugas Gudang / Yard", {"2026": [54.0, 109.0, 197.0, 279.0, 147.0, 215.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Elhami", "Operator Alat Berat", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Hendra Jaya", "Petugas Gudang / Yard", {"2026": [100.5, 45.0, 41.0, 276.5, 122.0, 178.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Nur Rahmandani", "Petugas Admin II", {"2026": [49.5, 49.0, 69.5, 135.5, 38.0, 110.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Fitriani, SE", "Petugas Admin III", {"2026": [41.5, 23.0, 0.0, 50.0, 41.0, 41.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WH", "Wahid Hasyim", "Operator Alat Berat", {"2026": [132.0, 99.0, 33.0, 165.0, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "ABDULLAH SAID", "Driller", {"2026": [291.0, 330.0, 363.0, 264.0, 466.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "ABDUL RAHMAN", "Derrickman", {"2026": [66.0, 142.0, 44.0, 231.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "JAMALUDIN", "Derrickman", {"2026": [33.0, 43.0, 169.0, 132.0, 74.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "JASMAN R.", "Floorman", {"2026": [0.0, 86.0, 76.0, 132.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "AGUS S.", "Floorman", {"2026": [33.0, 109.0, 152.0, 0.0, 231.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "RICO SUWANDI", "Floorman", {"2026": [99.0, 175.0, 142.0, 99.0, 208.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "NOUDI NOUKE N. K.", "Driller", {"2026": [0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "TRI YUDHA", "Derrickman", {"2026": [78.0, 76.0, 0.0, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "JUMADI", "Derrickman", {"2026": [0.0, 109.0, 66.0, 99.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "RIFALDI", "Floorman", {"2026": [78.0, 10.0, 132.0, 99.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "ALDI S.", "Floorman", {"2026": [45.0, 109.0, 0.0, 66.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "TRI UTOMO", "Floorman", {"2026": [12.0, 10.0, 0.0, 99.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "DEKI S.", "Driller", {"2026": [198.0, 330.0, 231.0, 373.0, 340.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "SUKIRMAN", "Derrickman", {"2026": [33.0, 43.0, 0.0, 0.0, 9.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "SUDIRMAN", "Floorman", {"2026": [0.0, 43.0, 0.0, 0.0, 9.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "ASWAR", "Floorman", {"2026": [33.0, 43.0, 33.0, 99.0, 9.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "ALEK PINO", "Floorman", {"2026": [0.0, 76.0, 66.0, 132.0, 76.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "SULAM", "Driller", {"2026": [0.0, 142.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "DARMADI", "Driller", {"2026": [0.0, 10.0, 0.0, 99.0, 189.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "M. ROCHMAN", "Derrickman", {"2026": [0.0, 10.0, 0.0, 99.0, 9.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "HELDI", "Floorman", {"2026": [0.0, 10.0, 0.0, 99.0, 9.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "ASROY", "Floorman", {"2026": [0.0, 76.0, 0.0, 132.0, 76.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "M. HIDRIL", "Driller", {"2026": [0.0, 66.0, 251.0, 198.0, 99.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "RUSDINOOR", "Derrickman", {"2026": [0.0, 55.0, 247.0, 297.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "NALOYANGAN", "Floorman", {"2026": [0.0, 66.0, 127.0, 132.0, 185.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "IBRAHIM", "Floorman", {"2026": [0.0, 255.0, 127.0, 0.0, 218.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "ANDY", "Floorman", {"2026": [0.0, 0.0, 34.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "A. ISMAIL", "Floorman", {"2026": [0.0, 132.0, 83.0, 132.0, 297.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "DODDI H.", "Driller", {"2026": [66.0, 109.0, 264.0, 198.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "ARIE KUSMANTO", "Derrickman", {"2026": [0.0, 10.0, 99.0, 165.0, 66.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "M. ISKANDAR", "Floorman", {"2026": [0.0, 10.0, 0.0, 33.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "JULIADI", "Floorman", {"2026": [0.0, 10.0, 66.0, 264.0, 231.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "SYAMSI", "Floorman", {"2026": [0.0, 10.0, 0.0, 231.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "SYAMSUL", "Floorman", {"2026": [0.0, 251.0, 33.0, 297.0, 132.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "SUGIANTO", "Pembantu Ops Survey BHP/Sonolog/WLU I", {"2026": [247.0, 271.0, 226.0, 249.0, 224.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "HARUNA", "Pembantu Ops Survey BHP/Sonolog/WLU II", {"2026": [147.0, 199.0, 192.5, 241.0, 234.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "YUPIUS R.", "Operator Crane", {"2026": [55.0, 291.5, 248.0, 317.0, 321.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "M. SUKIRNO", "Pembantu Ops Pumpshop II", {"2026": [215.5, 190.0, 233.0, 220.0, 205.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "MUSTAPA", "Pembantu Ops Pumpshop I", {"2026": [21.0, 17.5, 73.0, 58.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "SARMAN", "Pembantu Ops Lifting Equipment", {"2026": [181.5, 132.5, 210.0, 172.5, 266.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "TRIHADI WALUYO", "Petugas Peralatan Hoist I", {"2026": [164.5, 146.0, 236.5, 201.5, 231.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["WS", "RIDWANSYAH", "Floorman", {"2026": [176.0, 148.5, 214.5, 220.0, 199.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "M.Cholilullah", "TKJP PE", {"2026": [157.0, 145.0, 146.0, 149.5, 223.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Fitri Yuliana", "Admin Finance", {"2026": [41.0, 59.5, 85.0, 15.5, 51.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Wiwik Sundari", "HC", {"2026": [61.0, 55.0, 50.5, 37.5, 54.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Ananda Amelia", "Admin WH", {"2026": [27.5, 34.5, 49.5, 24.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Tasrina Septiani Prayogi", "Admin GS", {"2026": [41.0, 0.0, 50.5, 43.0, 38.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Ani Wahyuni", "Admin PO", {"2026": [30.5, 32.5, 26.0, 17.0, 34.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Risqi Dwi Muliana", "Admin CRC", {"2026": [24.0, 35.0, 57.0, 7.5, 12.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Siti Aminah", "Admin FM", {"2026": [16.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Khoirun Ni'mah", "Admin PE", {"2026": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Putri Mega L", "Admin Finance", {"2026": [28.0, 23.0, 31.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Admin+PE", "Purwantini", "Admin HSSE", {"2026": [13.5, 0.0, 17.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["ICT", "Dadan Sunandar", "Pembantu Ops. l Radio & Telecom", {"2026": [172.0, 182.5, 188.0, 208.5, 205.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["ICT", "Irwan", "Pembantu Teknisi ICT", {"2026": [172.0, 182.5, 157.0, 150.5, 205.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["ICT", "Ubor Hano", "Pembantu Teknisi ICT", {"2026": [26.5, 38.0, 17.0, 21.0, 21.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["ICT", "David Mario Ugak", "Pembantu Ops. l Radio & Telecom", {"2026": [47.5, 86.0, 84.0, 63.0, 42.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["ICT", "Febri Pradipka Mahendra", "Pembantu Ops. l Radio & Telecom", {"2026": [172.0, 182.5, 188.0, 208.5, 205.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Medic", "Priscilla Navratilova", "Asisten Perawat I", {"2026": [0.0, 0.0, 15.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Medic", "Sri Amah", "Asisten Perawat I", {"2026": [0.0, 14.0, 0.0, 36.5, 79.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Medic", "Wahyudin Nor", "Asisten Perawat I", {"2026": [58.5, 54.5, 33.0, 105.5, 126.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], ["Medic", "Hendra Saputra", "Asisten Perawat I", {"2026": [97.0, 65.0, 36.5, 38.5, 16.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}]]/*RAW_END*/;
+
+const MO=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const MOFULL=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const MONMAP={januari:0,jan:0,februari:1,feb:1,pebruari:1,maret:2,mar:2,mrt:2,april:3,apr:3,mei:4,may:4,juni:5,jun:5,juli:6,jul:6,agustus:7,agu:7,agt:7,agust:7,aug:7,september:8,sep:8,sept:8,oktober:9,okt:9,oct:9,november:10,nov:10,nop:10,nopember:10,desember:11,des:11,dec:11,dis:11};
+const FUNGSI=['GS','PO','Security','HSSE','RAM','WH','WS','Admin+PE','ICT','Medic'];
+const DEFY=['2026'];
+const fmt=n=>Math.round(n).toLocaleString('id-ID');
+const fmt1=n=>(+n).toLocaleString('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1});
+const KEY='lembur_monitoring_v5',OLDKEYS=[];
+let TW=220,TH=300,state=[],YEARS=[],curFungsi='GS',curYear='2026';
+let fFungsi=new Set(),fStatus=new Set(),q='',sortKey='total',sortDir=-1,_uid=0,_firstK=true,ACTIVE=[];
+
+function norm12(a){const x=(a||[]).map(v=>+v||0);while(x.length<12)x.push(0);return x.slice(0,12);}
+function migrate(r){const fungsi=r[0],nama=r[1],title=r[2],d=r[3];let y={};
+  if(Array.isArray(d)){y['2025']=norm12(d.slice(0,12));if(d.length>12)y['2026']=norm12(d.slice(12,24));}
+  else if(d&&typeof d==='object'){for(const k in d)y[k]=norm12(d[k]);}
+  if(!Object.keys(y).length)y['2026']=Array(12).fill(0);
+  return{id:_uid++,fungsi,nama,title,y};}
+function recomputeYears(){const s=new Set(DEFY);state.forEach(p=>Object.keys(p.y).forEach(k=>s.add(k)));
+  YEARS=[...s].sort();state.forEach(p=>YEARS.forEach(y=>{if(!p.y[y])p.y[y]=Array(12).fill(0);}));
+  if(!YEARS.includes(curYear))curYear=YEARS.includes('2026')?'2026':YEARS[0];}
+function getArr(p){if(!p.y[curYear])p.y[curYear]=Array(12).fill(0);return p.y[curYear];}
+
+function load(){let src=null;
+  try{const s=localStorage.getItem(KEY);if(s)src=JSON.parse(s);}catch(e){}
+  if(!Array.isArray(src)||!src.length){for(const k of OLDKEYS){try{const s=localStorage.getItem(k);if(s){const j=JSON.parse(s);if(Array.isArray(j)&&j.length){src=j;flash('data lama dimigrasikan');break;}}}catch(e){}}}
+  if(!Array.isArray(src)||!src.length)src=RAW;
+  state=src.map(migrate);recomputeYears();}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state.map(p=>[p.fungsi,p.nama,p.title,p.y])));flash('tersimpan');}
+  catch(e){const el=document.getElementById('saveInd');if(el)el.innerHTML='<span style="color:var(--amber)">simpan-otomatis nonaktif</span>';}}
+let _ft;function flash(m){const e=document.getElementById('saveInd');if(!e)return;e.innerHTML='<b>&#10003;</b> '+m;clearTimeout(_ft);_ft=setTimeout(()=>e.textContent='',2200);}
+
+function computeActive(){ACTIVE=[];for(let i=0;i<12;i++){let s=0;for(const p of state)s+=getArr(p)[i];if(s>0)ACTIVE.push(i);}}
+function calc(p){const a=getArr(p);let tot=0,mx=0;for(const i of ACTIVE){const v=a[i];tot+=v;if(v>mx)mx=v;}
+  const avg=ACTIVE.length?tot/ACTIVE.length:0;
+  return{total:tot,avg,max:mx,n:ACTIVE.length,status:avg>TH?'TINGGI':(avg>=TW?'PERHATIAN':'AMAN')};}
+function bcls(s){return s==='TINGGI'?'r':(s==='PERHATIAN'?'y':'g');}
+function mcls(v){return v>TH?'r':(v>=TW?'y':'g');}
+
+function renderYears(){const el=document.getElementById('yrseg');if(!el)return;
+  const ht=document.getElementById('headTag');if(ht)ht.textContent='Dashboard Operasional · Tahun '+curYear;
+  el.innerHTML=YEARS.map(y=>`<button class="${y===curYear?'on':''}" data-y="${y}" onclick="setYear('${y}')">${y}</button>`).join('')
+    +`<button class="addy" title="Tambah tahun" onclick="addYear()">+</button>`;}
+function setYear(y){curYear=y;renderYears();const my=document.getElementById('mYear');if(my)my.textContent=y;
+  _firstK=true;recompute();if(document.getElementById('view-manage').classList.contains('on'))renderManage();}
+function addYear(){let y=(prompt('Tambah tahun baru (mis. 2027):','')||'').trim();
+  if(!/^20\d{2}$/.test(y)){if(y)alert('Tahun tidak valid. Gunakan format 4 digit, mis. 2027.');return;}
+  state.forEach(p=>{if(!p.y[y])p.y[y]=Array(12).fill(0);});recomputeYears();curYear=y;
+  renderYears();_firstK=true;recompute();showView('manage');renderManage();fbPushAll();}
+
+function recompute(){renderYears();computeActive();renderHero();renderKpis();renderTrend();renderDonut();renderFbars();renderFungsiSummary();renderAlerts();renderTable();renderFtabs();}
+
+function renderHero(){
+  const n=state.length||1,hi=state.filter(p=>calc(p).status==='TINGGI').length,filled=ACTIVE.length;
+  const favg=FUNGSI.map(f=>{const s=state.filter(p=>p.fungsi===f);return{f,a:s.length?s.reduce((x,p)=>x+calc(p).avg,0)/s.length:0};}).sort((a,b)=>b.a-a.a);
+  const top=favg[0];
+  document.getElementById('heroLine').innerHTML= filled===0
+    ? `Belum ada data lembur untuk <b>${curYear}</b> &mdash; silakan isi di menu Kelola Data`
+    : (hi>0?`<b>${hi} karyawan</b> berstatus <b>TINGGI</b> di ${curYear} &mdash; perlu ditinjau`:`Beban lembur ${curYear} terkendali &mdash; tidak ada status tinggi`);
+  document.getElementById('heroSub').innerHTML= filled===0?`Tahun ${curYear}`
+    :`Fungsi tertinggi: <b>${top.f}</b> (${fmt(top.a)} jam/org/bln) &middot; ${filled} bulan terisi di ${curYear}`;
+  const tot=state.reduce((a,p)=>a+calc(p).total,0);
+  document.getElementById('heroPills').innerHTML=
+    `<div class="p"><div class="pv">${fmt(n)}</div><div class="pl">Karyawan</div></div>
+     <div class="p"><div class="pv">${tot>=1000?fmt(tot/1000)+'k':fmt(tot)}</div><div class="pl">Jam ${curYear}</div></div>
+     <div class="p"><div class="pv">${fmt(filled?tot/(n*filled):0)}</div><div class="pl">Jam/Bln</div></div>`;
+}
+function countUp(el,to,fn){let s=null,d=900;function st(t){if(!s)s=t;const p=Math.min((t-s)/d,1),e=1-Math.pow(1-p,3);el.textContent=fn(to*e);if(p<1)requestAnimationFrame(st);}requestAnimationFrame(st);}
+function renderKpis(){
+  const n=state.length||1,tot=state.reduce((a,p)=>a+calc(p).total,0),avg=ACTIVE.length?tot/(n*ACTIVE.length):0;
+  const hi=state.filter(p=>calc(p).status==='TINGGI').length,wa=state.filter(p=>calc(p).status==='PERHATIAN').length;
+  const I={users:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',gauge:'<path d="M12 14l4-4"/><path d="M3 12a9 9 0 0118 0"/><circle cx="12" cy="14" r="1.5"/>',
+    alert:'<path d="M10.3 3.6L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L14.7 3.6a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+    eye:'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>'};
+  const cards=[['Total Karyawan',n,fmt,'10 fungsi operasional','b','users',''],
+    ['Total Jam '+curYear,tot,fmt,ACTIVE.length+' bulan terisi','b','clock',''],
+    ['Rata-rata / Org / Bln',avg,fmt1,'jam (atas bulan terisi)','b','gauge',''],
+    ['Status Tinggi',hi,fmt,(hi/n*100).toFixed(0)+'% dari total','r','alert','r'],
+    ['Status Perhatian',wa,fmt,(wa/n*100).toFixed(0)+'% dari total','a','eye','a']];
+  document.getElementById('kpis').innerHTML=cards.map(([k,v,f,s,ic,icn,cls],i)=>
+    `<div class="kpi ${cls}" style="animation-delay:${i*60}ms"><div class="top"><div class="ic ic-${ic}"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">${I[icn]}</svg></div><div class="k">${k}</div></div><div class="v num" data-v="${v}" data-f="${f===fmt1?1:0}">${f(v)}</div><div class="s">${s}</div></div>`).join('');
+  if(_firstK){_firstK=false;document.querySelectorAll('#kpis .v').forEach(el=>countUp(el,+el.dataset.v,el.dataset.f==='1'?fmt1:fmt));}
+}
+function renderTrend(){
+  const W=560,H=216,pl=46,pr=18,pt=24,pb=30;
+  const all=MO.map((_,i)=>state.reduce((a,p)=>a+getArr(p)[i],0));
+  let last=-1;for(let i=0;i<12;i++)if(all[i]>0)last=i;if(last<1)last=1;
+  const cnt=last+1,mo=all.slice(0,cnt);
+  const sub=document.getElementById('trendSub');if(sub)sub.innerHTML='Akumulasi seluruh fungsi &middot; Tahun '+curYear+(ACTIVE.length?'':' (belum ada data)');
+  let mx=Math.max(...mo)*1.12||1,mn=Math.min(...mo)*0.88;if(mn===mx)mn=0;
+  const x=i=>pl+(W-pl-pr)*i/Math.max(cnt-1,1),y=v=>pt+(H-pt-pb)*(1-(v-mn)/(mx-mn||1));
+  let g='',lab='';for(let k=0;k<=4;k++){const gv=mn+(mx-mn)*k/4,yy=y(gv);
+    g+=`<line class="gridline" x1="${pl}" y1="${yy}" x2="${W-pr}" y2="${yy}"/>`;
+    lab+=`<text class="axlab" x="${pl-8}" y="${yy+3}" text-anchor="end">${fmt(gv/1000)}k</text>`;}
+  const pts=mo.map((v,i)=>`${x(i)},${y(v)}`).join(' '),area=`${pl},${y(mn)} ${pts} ${W-pr},${y(mn)}`;
+  let d='',vl='',xl='';mo.forEach((v,i)=>{d+=`<circle class="dot" cx="${x(i)}" cy="${y(v)}" r="4.5"/>`;
+    vl+=`<text class="vlab" x="${x(i)}" y="${y(v)-12}">${fmt(v/1000)}k</text>`;
+    xl+=`<text class="axlab" x="${x(i)}" y="${H-9}" text-anchor="middle">${MO[i]}</text>`;});
+  document.getElementById('trend').innerHTML=`<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(8,102,198,.22)"/><stop offset="1" stop-color="rgba(8,102,198,0)"/></linearGradient></defs>${g}${lab}<polygon class="trend-area" points="${area}"/><polyline class="trend-line" points="${pts}"/>${d}${vl}${xl}</svg>`;
+}
+function renderDonut(){
+  const n=state.length||1,st=state.map(p=>calc(p).status);
+  const g=st.filter(s=>s==='AMAN').length,y=st.filter(s=>s==='PERHATIAN').length,r=st.filter(s=>s==='TINGGI').length;
+  const segs=[['#009a44',g],['#f5a623',y],['#e4002b',r]],R=58,C=2*Math.PI*R;let o2=0,arcs='';
+  segs.forEach(([col,v])=>{const len=C*v/n;arcs+=`<circle cx="70" cy="70" r="${R}" fill="none" stroke="${col}" stroke-width="20" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-o2}"/>`;o2+=len;});
+  document.getElementById('donut').innerHTML=`<svg width="140" height="140" viewBox="0 0 140 140"><circle cx="70" cy="70" r="${R}" fill="none" stroke="#f0f5fb" stroke-width="20"/>${arcs}</svg><div class="ctr"><div class="cv num">${fmt(n)}</div><div class="cl">Karyawan</div></div>`;
+  const leg=[['#009a44','Aman',g],['#f5a623','Perhatian',y],['#e4002b','Tinggi',r]];
+  document.getElementById('dleg').innerHTML=leg.map(([c,l,v])=>`<div class="row"><span class="sw" style="background:${c}"></span><span class="lb">${l}</span><span class="ct num">${v}</span><span class="pc">${(v/n*100).toFixed(0)}%</span></div>`).join('');
+}
+function renderFbars(){
+  const rows=FUNGSI.map(f=>{const s=state.filter(p=>p.fungsi===f);return{f,avg:s.length?s.reduce((a,p)=>a+calc(p).avg,0)/s.length:0,n:s.length};});
+  const mx=Math.max(...rows.map(r=>r.avg),1);
+  document.getElementById('fbars').innerHTML=rows.map(r=>{const col=r.avg>TH?'var(--red)':(r.avg>=TW?'var(--amber)':'var(--green)');
+    return `<div class="fbar"><div class="nm" onclick="gotoFungsi('${r.f}')">${r.f}</div><div class="track"><div class="fill" style="width:${(r.avg/mx*100).toFixed(1)}%;background:${col}"><span class="fv">${fmt(r.avg)}</span></div></div><div class="cnt">${r.n}</div></div>`;}).join('');
+}
+function renderFungsiSummary(){const body=document.getElementById('fsumbody');if(!body)return;
+  body.innerHTML=FUNGSI.map(f=>{const s=state.filter(p=>p.fungsi===f);const tot=s.reduce((a,p)=>a+calc(p).total,0);
+    const avg=(s.length&&ACTIVE.length)?tot/(s.length*ACTIVE.length):0;const hi=s.filter(p=>calc(p).status==='TINGGI').length;
+    return `<tr onclick="gotoFungsi('${f}')"><td class="l">${f}</td><td class="num">${s.length}</td><td class="num">${fmt(tot)}</td><td class="num">${fmt(avg)}</td><td class="num ${hi?'hi':''}">${hi||'–'}</td></tr>`;}).join('');}
+function renderAlerts(){const el=document.getElementById('alerts');if(!el)return;
+  if(!ACTIVE.length){el.innerHTML='<div class="empty-cta">Belum ada data untuk <b>'+curYear+'</b>.<br>Buka <b>Kelola Data</b> atau klik <b>Impor Excel</b> untuk mengisi.</div>';return;}
+  const list=state.map(p=>({p,c:calc(p)})).filter(x=>x.c.status!=='AMAN').sort((a,b)=>b.c.avg-a.c.avg).slice(0,8);
+  if(!list.length){el.innerHTML='<div class="empty-cta">Semua karyawan berstatus <b style="color:var(--green)">Aman</b> untuk '+curYear+'.</div>';return;}
+  el.innerHTML=list.map((x,i)=>{const t=x.c.status==='TINGGI';
+    return '<div class="alert-row"><div class="alert-rank '+(t?'':'y')+'">'+(i+1)+'</div><div class="alert-nm"><div class="n">'+esc(x.p.nama||'(tanpa nama)')+'</div><div class="f">'+x.p.fungsi+' · '+esc(x.p.title||'-')+'</div></div><div class="alert-val"><div class="v" style="color:'+(t?'var(--red)':'#b97c0a')+'">'+fmt(x.c.avg)+'</div><div class="l">jam/bln</div></div></div>';}).join('');}
+function renderChips(){
+  document.getElementById('fungsiChips').innerHTML=FUNGSI.map(f=>`<div class="chip${fFungsi.has(f)?' on':''}" data-f="${f}">${f}</div>`).join('');
+  const st=[['AMAN','g'],['PERHATIAN','y'],['TINGGI','r']];
+  document.getElementById('statusChips').innerHTML=st.map(([s,c])=>`<div class="chip ${c}${fStatus.has(s)?' on':''}" data-s="${s}">${s}</div>`).join('');
+  document.querySelectorAll('[data-f]').forEach(el=>el.onclick=()=>{const f=el.dataset.f;fFungsi.has(f)?fFungsi.delete(f):fFungsi.add(f);renderChips();renderTable();});
+  document.querySelectorAll('[data-s]').forEach(el=>el.onclick=()=>{const s=el.dataset.s;fStatus.has(s)?fStatus.delete(s):fStatus.add(s);renderChips();renderTable();});
+}
+function curCOLS(){const c=[['fungsi','Fungsi','l'],['nama','Nama','l'],['title','Jabatan','l']];
+  for(let i=0;i<12;i++)c.push(['m'+i,MO[i],'']);c.push(['total','Total',''],['avg','Rata2',''],['max','Maks',''],['status','Status','']);return c;}
+function gval(p,k){const c=calc(p);if(k[0]==='m'&&!isNaN(+k.slice(1)))return getArr(p)[+k.slice(1)];if(k in c)return c[k];return p[k];}
+function renderTable(){
+  const COLS=curCOLS(),head=document.getElementById('thead');
+  const W={fungsi:'72px',nama:'190px',title:'240px',total:'70px',avg:'66px',max:'66px',status:'100px'};
+  head.innerHTML=COLS.map(([k,l,c])=>`<th class="${c==='l'?'l':''}" data-k="${k}"${W[k]?' style="min-width:'+W[k]+'"':''}>${l} ${sortKey===k?`<span class="ar">${sortDir>0?'\u25B2':'\u25BC'}</span>`:''}</th>`).join('');
+  head.querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(['nama','title','fungsi'].includes(k))?1:-1;}renderTable();});
+  let rows=state.filter(p=>{if(fFungsi.size&&!fFungsi.has(p.fungsi))return false;if(fStatus.size&&!fStatus.has(calc(p).status))return false;if(q&&!(p.nama+' '+p.title).toLowerCase().includes(q))return false;return true;});
+  rows.sort((a,b)=>{let x=gval(a,sortKey),y=gval(b,sortKey);return(typeof x==='string')?x.localeCompare(y)*sortDir:(x-y)*sortDir;});
+  const tb=document.getElementById('tbody');
+  if(!rows.length)tb.innerHTML=`<tr><td colspan="${COLS.length}" class="empty">Tidak ada data yang cocok.</td></tr>`;
+  else tb.innerHTML=rows.map(p=>{const c=calc(p),sc=bcls(c.status),a=getArr(p);
+    return `<tr><td class="l"><span class="fg">${p.fungsi}</span></td><td class="l nmcell">${esc(p.nama)}</td><td class="l ttl-cell" title="${esc(p.title)}">${esc(p.title)}</td>${a.map(v=>`<td class="mc ${mcls(v)} num">${fmt1(v)}</td>`).join('')}<td class="tot num">${fmt(c.total)}</td><td class="num">${fmt1(c.avg)}</td><td class="num">${fmt1(c.max)}</td><td><span class="badge ${sc}">${c.status}</span></td></tr>`;}).join('');
+  document.getElementById('tfoot').innerHTML=`Menampilkan <b style="color:var(--pnavy)">${rows.length}</b> dari ${state.length} karyawan &middot; tahun ${curYear}`;
+}
+function esc(s){return(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+
+function renderFtabs(){document.getElementById('ftabs').innerHTML=FUNGSI.map(f=>{const n=state.filter(p=>p.fungsi===f).length;return `<div class="ftab${f===curFungsi?' on':''}" onclick="gotoFungsi('${f}')">${f}<span class="b">${n}</span></div>`;}).join('');}
+function gotoFungsi(f){curFungsi=f;showView('manage');renderFtabs();renderManage();}
+function renderMthead(){let s='<th class="l" style="width:40px">#</th><th class="l" style="width:200px">Nama</th><th class="l" style="width:250px">Jabatan</th>';
+  for(let i=0;i<12;i++)s+=`<th style="width:74px">${MO[i]}</th>`;s+='<th style="width:68px">Total</th><th style="width:100px">Status</th><th style="width:46px"></th>';
+  document.getElementById('mthead').innerHTML=s;}
+function renderManage(){
+  document.getElementById('mFungsi').textContent=curFungsi;const my=document.getElementById('mYear');if(my)my.textContent=curYear;
+  renderMthead();
+  const rows=state.filter(p=>p.fungsi===curFungsi),tb=document.getElementById('mbody');
+  if(!rows.length)tb.innerHTML=`<tr><td colspan="18" class="empty">Belum ada karyawan. Klik "+ Tambah Karyawan".</td></tr>`;
+  else tb.innerHTML=rows.map((p,idx)=>{const c=calc(p),a=getArr(p);
+    return `<tr data-id="${p.id}"><td class="l" style="color:var(--dim)">${idx+1}</td>
+      <td class="l"><input class="cin" value="${esc(p.nama)}" oninput="upd(${p.id},'nama',this.value)" placeholder="Nama\u2026"></td>
+      <td class="l"><input class="cin" value="${esc(p.title)}" oninput="upd(${p.id},'title',this.value)" placeholder="Jabatan\u2026"></td>
+      ${a.map((v,i)=>`<td><input class="min ${mcls(v)}" type="number" step="0.5" min="0" value="${v}" oninput="updM(${p.id},${i},this.value,this)"></td>`).join('')}
+      <td class="rowtot" data-tot>${fmt(c.total)}</td><td data-badge><span class="badge ${bcls(c.status)}">${c.status}</span></td>
+      <td><button class="del" title="Hapus karyawan" onclick="delPerson(${p.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-9 0v14a1 1 0 001 1h8a1 1 0 001-1V6"/></svg></button></td></tr>`;}).join('');
+  document.getElementById('minfo').textContent=`${rows.length} karyawan \u00b7 fungsi ${curFungsi} \u00b7 tahun ${curYear}`;
+}
+function upd(id,f,v){const p=state.find(x=>x.id===id);if(p){p[f]=v;scheduleSave();}}
+function updM(id,i,v,inp){const p=state.find(x=>x.id===id);if(!p)return;getArr(p)[i]=+v||0;inp.className='min '+mcls(getArr(p)[i]);
+  computeActive();renderHero();renderKpis();renderTrend();renderDonut();renderFbars();renderFungsiSummary();renderAlerts();renderFtabs();
+  document.querySelectorAll('#mbody tr[data-id]').forEach(tr=>{const pp=state.find(x=>x.id=== +tr.dataset.id);if(!pp)return;const cc=calc(pp);
+    const tt=tr.querySelector('[data-tot]');if(tt)tt.textContent=fmt(cc.total);
+    const bb=tr.querySelector('[data-badge]');if(bb)bb.innerHTML=`<span class="badge ${bcls(cc.status)}">${cc.status}</span>`;});
+  scheduleSave();}
+let _st;function scheduleSave(){clearTimeout(_st);_st=setTimeout(()=>{save();fbPushFungsi(curFungsi);},500);}
+function addPerson(){const y={};YEARS.forEach(yr=>y[yr]=Array(12).fill(0));
+  const p={id:_uid++,fungsi:curFungsi,nama:'',title:'',y};state.unshift(p);showView('manage');renderManage();
+  renderHero();renderKpis();renderDonut();renderFbars();renderFtabs();
+  const inp=document.querySelector(`tr[data-id="${p.id}"] .cin`);if(inp)inp.focus();scheduleSave();}
+function delPerson(id){const p=state.find(x=>x.id===id);if(!p)return;if(!confirm(`Hapus "${p.nama||'(tanpa nama)'}" dari ${p.fungsi}?`))return;const ff=p.fungsi;state=state.filter(x=>x.id!==id);recompute();renderManage();save();fbPushFungsi(ff);}
+
+function showView(v){
+  document.getElementById('view-dash').classList.toggle('on',v==='dash');
+  document.getElementById('view-manage').classList.toggle('on',v==='manage');
+  document.getElementById('navDash').classList.toggle('on',v==='dash');
+  document.getElementById('navManage').classList.toggle('on',v==='manage');
+  if(v==='manage')renderManage();}
+
+function download(c,n,t){const b=new Blob([c],{type:t}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=n;a.click();URL.revokeObjectURL(u);}
+function exportJSON(){download(JSON.stringify(state.map(p=>[p.fungsi,p.nama,p.title,p.y]),null,1),'data_lembur_'+stamp()+'.json','application/json');flash('data diekspor');}
+function exportCSV(){const head=['Fungsi','Nama','Jabatan'];YEARS.forEach(y=>MO.forEach(mn=>head.push(y+' '+mn)));YEARS.forEach(y=>head.push('Total '+y));
+  const lines=[head.join(';')];
+  state.forEach(p=>{const row=[p.fungsi,'"'+(p.nama||'').replace(/"/g,'""')+'"','"'+(p.title||'').replace(/"/g,'""')+'"'];
+    YEARS.forEach(y=>{(p.y[y]||Array(12).fill(0)).forEach(v=>row.push(v));});
+    YEARS.forEach(y=>row.push((p.y[y]||[]).reduce((a,b)=>a+(+b||0),0)));lines.push(row.join(';'));});
+  download('\ufeff'+lines.join('\r\n'),'data_lembur_'+stamp()+'.csv','text/csv');flash('CSV diekspor');}
+function stamp(){const d=new Date();return d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2);}
+
+document.getElementById('imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const j=JSON.parse(r.result);if(!Array.isArray(j))throw 0;state=j.map(migrate);recomputeYears();save();_firstK=true;recompute();renderManage();fbPushAll();alert('Data berhasil dimuat: '+state.length+' karyawan.');}catch(err){alert('File tidak valid.');}};r.readAsText(f);e.target.value='';};
+
+function parseHdr(s){s=(''+s).trim().toLowerCase();const ym=s.match(/(20\d{2})/);const year=ym?ym[1]:null;let mi=null;
+  for(const tok of s.split(/[^a-z]+/)){if(tok&&tok in MONMAP){mi=MONMAP[tok];break;}}return{year,mi};}
+document.getElementById('impx').onchange=e=>{const files=[...e.target.files];if(!files.length)return;
+  if(typeof XLSX==='undefined'){alert('Komponen Excel belum termuat. Pastikan ada koneksi internet saat impor Excel, lalu coba lagi.');e.target.value='';return;}
+  const done=[],yall=new Set();let firstF=null,errN=0;
+  function processSheet(rows,sheetName){
+    let fung='';for(const row of rows){for(let c=0;c<row.length;c++){if((''+row[c]).trim().toUpperCase()==='FUNGSI')fung=(''+(row[c+1]||'')).trim();}}
+    if(!fung)fung=(''+sheetName).trim();
+    const nf=FUNGSI.find(x=>x.toLowerCase()===fung.toLowerCase());if(!nf)return;fung=nf;
+    let hi=-1;for(let i=0;i<rows.length;i++){if(rows[i].some(x=>(''+x).trim().toLowerCase()==='nama')){hi=i;break;}}
+    if(hi<0)return;
+    const hdr=rows[hi];let namaCol=-1,titleCol=-1;const mcols=[];
+    for(let c=0;c<hdr.length;c++){const low=(''+hdr[c]).trim().toLowerCase();
+      if(low==='nama')namaCol=c;else if(low==='jabatan')titleCol=c;
+      else{const ph=parseHdr(hdr[c]);if(ph.mi!==null)mcols.push({c,year:ph.year,mi:ph.mi});}}
+    if(namaCol<0||!mcols.length)return;
+    mcols.forEach(m=>{if(!m.year)m.year='2026';yall.add(m.year);});
+    const yset=new Set(mcols.map(m=>m.year));const recs=[];
+    for(let i=hi+1;i<rows.length;i++){const row=rows[i];const nama=(''+(row[namaCol]||'')).trim();
+      if(!nama||nama.toUpperCase()==='TOTAL')continue;const y={};yset.forEach(yr=>y[yr]=Array(12).fill(0));
+      mcols.forEach(m=>{y[m.year][m.mi]=+(''+row[m.c]).replace(',','.')||0;});
+      recs.push({id:_uid++,fungsi:fung,nama,title:titleCol>=0?(''+(row[titleCol]||'')).trim():'',y});}
+    state=state.filter(p=>p.fungsi!==fung).concat(recs);
+    done.push(fung+' ('+recs.length+')');if(!firstF)firstF=fung;
+  }
+  const readOne=f=>new Promise(res=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>res(null);r.readAsArrayBuffer(f);});
+  Promise.all(files.map(readOne)).then(bufs=>{
+    bufs.forEach(buf=>{if(!buf){errN++;return;}
+      try{const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
+        wb.SheetNames.forEach(sn=>processSheet(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''}),sn));}
+      catch(err){errN++;}});
+    if(!done.length){alert('Tidak ada sheet fungsi yang terbaca. Pastikan nama sheet atau sel FUNGSI sesuai (GS, PO, RAM, dst.) dan ada kolom "Nama".');e.target.value='';return;}
+    recomputeYears();save();_firstK=true;
+    const ys=[...yall].sort();if(ys.length&&!ys.includes(curYear))curYear=ys[0];
+    if(firstF)curFungsi=firstF;recompute();renderManage();fbPushAll();
+    alert('Berhasil impor '+done.length+' fungsi dari '+files.length+' file:\n'+done.join(', ')+'\nTahun: '+ys.join(', ')+'.'+(errN?'\n('+errN+' file gagal dibaca.)':''));
+    e.target.value='';
+  });};
+
+function downloadHTML(){let src='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+  const payload=JSON.stringify(state.map(p=>[p.fungsi,p.nama,p.title,p.y]));
+  src=src.replace(/\/\*RAW_START\*\/[\s\S]*?\/\*RAW_END\*\//,'/*RAW_START*/'+payload.replace(/\$/g,'$$$$')+'/*RAW_END*/');
+  download(src,'Monitoring_Lembur_'+stamp()+'.html','text/html');flash('HTML terbaru diunduh');}
+
+document.getElementById('search').oninput=e=>{q=e.target.value.toLowerCase().trim();renderTable();};
+document.getElementById('tWatch').oninput=e=>{TW=+e.target.value||0;recompute();renderManage();};
+document.getElementById('tHigh').oninput=e=>{TH=+e.target.value||0;recompute();renderManage();};
+
+
+/* ===== Firebase Realtime Database ===== */
+const FBURL='https://lemburan-pep-sgt-default-rtdb.asia-southeast1.firebasedatabase.app/';
+let db=null,fbReady=false,applyingRemote=false,lastCloud='',_fbT=null;
+function fbStatus(txt,cls){const d=document.getElementById('fbDot');if(d)d.className='fbdot '+cls;const t=document.getElementById('fbTxt');if(t)t.textContent=txt;}
+function toCloud(){const o={};FUNGSI.forEach(f=>{o[f]=state.filter(p=>p.fungsi===f).map(p=>({nama:p.nama||'',title:p.title||'',y:p.y}));});return o;}
+function fromCloud(obj){const ns=[];FUNGSI.forEach(f=>{let arr=obj&&obj[f];if(!arr)return;if(!Array.isArray(arr))arr=Object.values(arr);
+  arr.forEach(p=>{if(!p)return;const y={},py=p.y||{};for(const k in py)y[k]=norm12(py[k]);ns.push({id:_uid++,fungsi:f,nama:p.nama||'',title:p.title||'',y});});});return ns;}
+function fbInit(){
+  if(typeof firebase==='undefined'){fbStatus('Offline','off');return;}
+  try{
+    if(!firebase.apps||!firebase.apps.length)firebase.initializeApp({databaseURL:FBURL});
+    db=firebase.database();fbReady=true;fbStatus('Menyambungkan\u2026','wait');
+    db.ref('lembur/fungsi').on('value',snap=>{
+      const val=snap.val();const js=JSON.stringify(val||{});
+      if(val==null){ if(state.some(p=>Object.values(p.y).some(a=>a.some(v=>v>0)))){fbPushAll();} fbStatus('Tersambung','on'); lastCloud=js; return; }
+      if(js===lastCloud){fbStatus('Tersambung','on');return;}
+      lastCloud=js;
+      const editing=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#mbody');
+      if(editing){fbStatus('Tersambung (ada perubahan)','on');return;}
+      applyingRemote=true;
+      state=fromCloud(val);recomputeYears();_firstK=true;
+      recompute();if(document.getElementById('view-manage').classList.contains('on'))renderManage();
+      try{localStorage.setItem(KEY,JSON.stringify(state.map(p=>[p.fungsi,p.nama,p.title,p.y])));}catch(e){}
+      applyingRemote=false;fbStatus('Tersambung','on');
+    },err=>{fbStatus('Akses ditolak \u2014 atur Rules','err');});
+    firebase.database().ref('.info/connected').on('value',s=>{if(s.val()===false)fbStatus('Menyambungkan\u2026','wait');});
+  }catch(e){fbStatus('Gagal sambung cloud','err');}
+}
+function fbPushFungsi(f){if(!fbReady||applyingRemote)return;clearTimeout(_fbT);_fbT=setTimeout(()=>{
+  try{lastCloud='';db.ref('lembur/fungsi/'+f).set(state.filter(p=>p.fungsi===f).map(p=>({nama:p.nama||'',title:p.title||'',y:p.y})));flash('tersimpan ke cloud');}catch(e){}
+},450);}
+function fbPushAll(manual){if(!fbReady){if(manual)alert('Belum tersambung ke cloud. Pastikan ada internet & Rules database mengizinkan akses.');return;}
+  try{lastCloud='';db.ref('lembur/fungsi').set(toCloud());flash('terkirim ke cloud');}catch(e){if(manual)alert('Gagal mengirim ke cloud: '+e.message);}}
+
+load();recompute();renderChips();renderFtabs();
+fbInit();
+
+</script>
+</body>
+</html>
